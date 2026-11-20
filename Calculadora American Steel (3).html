@@ -1,0 +1,751 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>Calculadora American Steel</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+/* Layout: banda de resultado arriba; datos editables a la izquierda; pasos de la solución en pestañas a la derecha. */
+:root{
+  --bg:#eceff2; --surface:#fafbfc; --ink:#1a2330; --muted:#5a6776; --line:#d2d9e0;
+  --steel:#2b4762; --accent:#b8480f; --accent-soft:#f6e3d6; --good:#2c7a4b; --good-soft:#dcefe3;
+  --warn:#9a6a00; --warn-soft:#f6ecd0; --bad:#a32a2a; --bad-soft:#f5dcdc;
+  --c1:#2b4762; --c2:#b8480f; --c3:#6f8a99; --field:#ffffff;
+  --display:'Barlow Condensed','Arial Narrow',sans-serif;
+  --body:'IBM Plex Sans',system-ui,-apple-system,'Segoe UI',sans-serif;
+  --mono:'IBM Plex Mono',ui-monospace,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#13181d; --surface:#1b2129; --ink:#e5e9ee; --muted:#93a0ae; --line:#2b343e;
+    --steel:#9bbbd8; --accent:#f0894a; --accent-soft:#3a2517; --good:#6fd09a; --good-soft:#17301f;
+    --warn:#e3b95a; --warn-soft:#352b10; --bad:#f08a8a; --bad-soft:#381a1a;
+    --c1:#7aa3c8; --c2:#f0894a; --c3:#7d98a6; --field:#12171c; color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#13181d; --surface:#1b2129; --ink:#e5e9ee; --muted:#93a0ae; --line:#2b343e;
+  --steel:#9bbbd8; --accent:#f0894a; --accent-soft:#3a2517; --good:#6fd09a; --good-soft:#17301f;
+  --warn:#e3b95a; --warn-soft:#352b10; --bad:#f08a8a; --bad-soft:#381a1a;
+  --c1:#7aa3c8; --c2:#f0894a; --c3:#7d98a6; --field:#12171c; color-scheme:dark;
+}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--body);font-size:14px;line-height:1.5;
+  padding-block:0 40px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.wrap{max-width:1220px;margin:0 auto}
+h1,h2,h3{font-family:var(--display);font-weight:700;letter-spacing:.01em;margin:0;text-wrap:balance}
+header{padding-block:22px 14px;display:flex;flex-wrap:wrap;gap:6px 24px;align-items:end;justify-content:space-between}
+h1{font-size:clamp(30px,5vw,44px);line-height:1;color:var(--steel)}
+.src{color:var(--muted);font-size:13px;max-width:520px;margin:0}
+.eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--accent);margin-bottom:6px}
+
+.kpis{display:grid;grid-template-columns:minmax(0,1.5fr) repeat(3,minmax(0,1fr));gap:12px;margin-block:8px 18px}
+.kpi{background:var(--surface);border:1px solid var(--line);padding:14px 16px;min-width:0}
+.kpi.main{border-color:var(--steel);border-width:2px}
+.kpi .lbl{font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);font-weight:500}
+.kpi .val{font-family:var(--display);font-size:clamp(28px,4vw,40px);font-weight:700;line-height:1.1;margin-top:4px;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
+.kpi.main .val{color:var(--accent)}
+.kpi .sub{font-size:12px;color:var(--muted);margin-top:2px}
+.bar{height:8px;background:var(--line);margin-top:8px;position:relative}
+.bar i{position:absolute;inset:0 auto 0 0;background:var(--steel)}
+.bar i.full{background:var(--accent)}
+.pill{display:inline-block;font-size:11px;font-weight:600;padding:2px 8px;border-radius:99px;letter-spacing:.04em}
+.pill.ok{background:var(--good-soft);color:var(--good)}
+.pill.warn{background:var(--warn-soft);color:var(--warn)}
+.pill.bad{background:var(--bad-soft);color:var(--bad)}
+
+.layout{display:grid;grid-template-columns:minmax(0,380px) minmax(0,1fr);gap:20px;align-items:start}
+.panel{background:var(--surface);border:1px solid var(--line)}
+.panel>h2{font-size:22px;padding:12px 16px;border-bottom:1px solid var(--line);color:var(--steel)}
+.inputs{padding:4px 16px 16px}
+.inputs h3{font-size:16px;margin:16px 0 6px;color:var(--steel);letter-spacing:.04em;text-transform:uppercase}
+.inputs .hint{font-size:12px;color:var(--muted);margin:0 0 6px}
+.tbl{overflow-x:auto;max-width:100%}
+table{border-collapse:collapse;width:100%;font-size:13px}
+th,td{padding:6px 8px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
+th{font-weight:600;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);white-space:nowrap}
+td.n,th.n{text-align:right;font-variant-numeric:tabular-nums}
+td.m{font-family:var(--mono);font-size:12px}
+tr.tot td{font-weight:600;border-top:2px solid var(--line)}
+.inputs input[type=number]{width:100%;min-width:62px;font:inherit;font-family:var(--mono);font-size:13px;padding:4px 6px;border:1px solid var(--line);
+  background:var(--field);color:var(--ink);text-align:right;border-radius:2px}
+input:focus-visible,button:focus-visible,summary:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.actions{display:flex;gap:8px;margin-top:16px;align-items:center;flex-wrap:wrap}
+button{font:inherit;cursor:pointer}
+.btn{background:var(--steel);color:var(--surface);border:0;padding:8px 14px;font-weight:600;border-radius:2px}
+.btn.ghost{background:transparent;color:var(--steel);border:1px solid var(--steel)}
+
+.tabs{display:flex;overflow-x:auto;border-bottom:1px solid var(--line);scrollbar-width:thin}
+.tabs button{background:none;border:0;border-bottom:3px solid transparent;padding:12px 14px;color:var(--muted);font-weight:500;white-space:nowrap}
+.tabs button[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--accent);font-weight:600}
+.pane{padding:16px;min-width:0}
+.pane h3{font-size:20px;color:var(--steel);margin-bottom:4px}
+.pane p{margin:0 0 10px;max-width:70ch}
+.pane .gap{margin-top:20px}
+pre.f{font-family:var(--mono);font-size:12px;line-height:1.7;background:var(--bg);border:1px solid var(--line);padding:10px 12px;margin:6px 0 4px;overflow-x:auto;white-space:pre-wrap;overflow-wrap:anywhere}
+.stack{display:flex;height:30px;border:1px solid var(--line);margin:8px 0}
+.stack div{height:100%;min-width:2px}
+.legend{display:flex;flex-wrap:wrap;gap:6px 18px;font-size:13px}
+.legend span::before{content:"";display:inline-block;width:10px;height:10px;margin-right:6px;background:var(--k)}
+.note{background:var(--accent-soft);border-left:3px solid var(--accent);padding:10px 12px;margin:12px 0;max-width:75ch}
+details{margin-top:12px}
+summary{cursor:pointer;font-weight:600;color:var(--steel)}
+.scroll{max-height:340px;overflow:auto;border:1px solid var(--line);margin-top:8px}
+.neg{color:var(--good)} .pos{color:var(--bad)}
+.mx{overflow:auto;max-height:480px;border:1px solid var(--line);margin-top:8px;max-width:100%}
+.mx table{width:max-content;border-collapse:separate;border-spacing:0;font-size:11px}
+.mx th,.mx td{padding:3px 7px;border-bottom:1px solid var(--line);border-right:1px solid var(--line);text-align:right;white-space:nowrap}
+.mx th{position:sticky;top:0;background:var(--bg);z-index:2;font-size:10px;letter-spacing:.02em}
+.mx th:first-child,.mx td:first-child{position:sticky;left:0;background:var(--surface);text-align:left;z-index:1;font-weight:600}
+.mx th:first-child{z-index:3;background:var(--bg)}
+.mx td.z{color:var(--muted);opacity:.6}
+.mx td.nz{background:var(--accent-soft);font-weight:600}
+.mx tr.cv td,.mx tr.xs td{font-weight:600;background:var(--bg)}
+.mgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,330px),1fr));gap:18px;margin-top:10px}
+.mcard{min-width:0}
+.mcard.wide{grid-column:1/-1}
+.mcard .hint{font-size:12px;color:var(--muted);margin:0 0 4px}
+table.mt td.n,table.mt th.n{text-align:right}
+table.mt tr.tot td{font-weight:600;border-top:2px solid var(--line)}
+
+.inputs input.bad{border-color:var(--bad);background:var(--bad-soft);box-shadow:0 0 0 1px var(--bad)}
+.ferr{display:block;color:var(--bad);font-size:11px;line-height:1.25;margin-top:3px;text-align:left;font-weight:600}
+.errbar{background:var(--bad-soft);border-left:4px solid var(--bad);color:var(--ink);padding:8px 12px;margin:10px 0;font-size:13px}
+.errbar[hidden]{display:none}
+.stepper{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:10px 0}
+.stepper .cur{font-weight:600}
+.sx td,.sx th{padding:4px 6px;font-size:12px;white-space:nowrap}
+.sx td.pc,.sx th.pc{background:var(--accent-soft)}
+.sx td.pr{background:var(--accent-soft)}
+.sx td.pv{background:var(--accent);color:var(--surface);font-weight:700}
+.sx tr.zr td{font-weight:600;border-top:2px solid var(--line)}
+.sx td.neg2{color:var(--bad);font-weight:600}
+.expl{background:var(--bg);padding:10px 12px;margin:10px 0;font-size:14px}
+.expl p{margin:4px 0}
+@media (max-width:1020px){
+  .kpis{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .kpi.main{grid-column:1/-1}
+  .layout{grid-template-columns:minmax(0,1fr)}
+}
+@media (max-width:420px){ .kpis{grid-template-columns:minmax(0,1fr)} }
+</style>
+
+<div class="wrap">
+  <header>
+    <div>
+      <div class="eyebrow">Programación lineal · Mathur y Solow, capítulo 3</div>
+      <h1>Calculadora American Steel</h1>
+    </div>
+    <p class="src">Plan anual de compra, producción y distribución que minimiza el costo total. Cambie cualquier dato del caso y el modelo se resuelve de nuevo.</p>
+  </header>
+
+  <section class="kpis" id="kpis" aria-live="polite"></section>
+
+  <div class="layout">
+    <section class="panel" aria-labelledby="h-datos">
+      <h2 id="h-datos">Datos del caso</h2>
+      <div class="inputs" id="inputs"></div>
+    </section>
+
+    <section class="panel" aria-labelledby="h-pasos">
+      <h2 id="h-pasos">Cómo se resolvió</h2>
+      <div class="tabs" role="tablist" id="tabs"></div>
+      <div id="panes"></div>
+    </section>
+  </div>
+</div>
+
+<script>
+//<MODEL>
+const MILLS=['P','Y'], MILLN={P:'Pittsburgh',Y:'Youngstown'};
+const SRC=['B','C'], SRCN={B:'Butte Minerals',C:'Cheyenne Mines'}, SRCORE={B:'A',C:'B'};
+const GR=['H','L'], GRN={H:'alto calibre',L:'bajo calibre'};
+const CTRY=['J','K','T','M'], CN={J:'Japón',K:'Corea',T:'Taiwán',M:'México'};
+
+const DEFAULT={
+  buy:{B:130,C:110},
+  shipOre:{B:{P:10,Y:13},C:{P:14,Y:17}},
+  proc:{H:{P:32,Y:39},L:{P:27,Y:32}},
+  shipSteel:{
+    J:{H:{P:110,Y:115},L:{P:100,Y:110}},
+    K:{H:{P:140,Y:150},L:{P:130,Y:145}},
+    T:{H:{P:130,Y:135},L:{P:125,Y:127}},
+    M:{H:{P:80,Y:90},L:{P:80,Y:85}}
+  },
+  demand:{J:{H:400,L:200},K:{H:200,L:100},T:{H:200,L:100},M:{H:150,L:50}},
+  supply:{B:1000,C:2000},
+  cap:{P:700,Y:1500},
+  ratio:{H:2,L:3}
+};
+
+function buildModel(P){
+  const vars=[];
+  const add=(name,group,desc,cost)=>vars.push({name,group,desc,cost});
+  for(const s of SRC)for(const m of MILLS)
+    add('I'+s+m,'compra',`Mineral calibre ${SRCORE[s]} comprado a ${SRCN[s]} y embarcado a ${MILLN[m]}`,P.buy[s]+P.shipOre[s][m]);
+  for(const g of GR)for(const m of MILLS)
+    add(g+m,'produccion',`Acero de ${GRN[g]} producido en ${MILLN[m]}`,P.proc[g][m]);
+  for(const m of MILLS)for(const g of GR)for(const s of SRC)
+    add('O'+s+m+g,'produccion',`Mineral de ${SRCN[s]} usado para acero de ${GRN[g]} en ${MILLN[m]}`,0);
+  for(const g of GR)for(const m of MILLS)for(const c of CTRY)
+    add('S'+g+m+c,'distribucion',`Acero de ${GRN[g]} embarcado de ${MILLN[m]} a ${CN[c]}`,P.shipSteel[c][g][m]);
+
+  const cons=[];
+  const con=(id,group,text,coef,sense,rhs)=>cons.push({id,group,text,coef,sense,rhs});
+  con('R1','Compra','Suministro de Butte Minerals',{IBP:1,IBY:1},'<=',P.supply.B);
+  con('R2','Compra','Suministro de Cheyenne Mines',{ICP:1,ICY:1},'<=',P.supply.C);
+  con('R3','Capacidad','Capacidad de la prensa de Pittsburgh',{OBPH:1,OBPL:1,OCPH:1,OCPL:1},'<=',P.cap.P);
+  con('R4','Capacidad','Capacidad de la prensa de Youngstown',{OBYH:1,OBYL:1,OCYH:1,OCYL:1},'<=',P.cap.Y);
+  con('R5','Mezcla','Mezcla alto calibre en Pittsburgh',{OCPH:1,OBPH:-P.ratio.H},'=',0);
+  con('R6','Mezcla','Mezcla bajo calibre en Pittsburgh',{OCPL:1,OBPL:-P.ratio.L},'=',0);
+  con('R7','Mezcla','Mezcla alto calibre en Youngstown',{OCYH:1,OBYH:-P.ratio.H},'=',0);
+  con('R8','Mezcla','Mezcla bajo calibre en Youngstown',{OCYL:1,OBYL:-P.ratio.L},'=',0);
+  con('R9','Producción y compra','Mineral de Butte usado en Pittsburgh',{OBPH:1,OBPL:1,IBP:-1},'<=',0);
+  con('R10','Producción y compra','Mineral de Cheyenne usado en Pittsburgh',{OCPH:1,OCPL:1,ICP:-1},'<=',0);
+  con('R11','Producción y compra','Mineral de Butte usado en Youngstown',{OBYH:1,OBYL:1,IBY:-1},'<=',0);
+  con('R12','Producción y compra','Mineral de Cheyenne usado en Youngstown',{OCYH:1,OCYL:1,ICY:-1},'<=',0);
+  con('R13','Equilibrio','Acero de alto calibre producido en Pittsburgh',{OCPH:1,OBPH:1,HP:-1},'=',0);
+  con('R14','Equilibrio','Acero de bajo calibre producido en Pittsburgh',{OCPL:1,OBPL:1,LP:-1},'=',0);
+  con('R15','Equilibrio','Acero de alto calibre producido en Youngstown',{OCYH:1,OBYH:1,HY:-1},'=',0);
+  con('R16','Equilibrio','Acero de bajo calibre producido en Youngstown',{OCYL:1,OBYL:1,LY:-1},'=',0);
+  let k=17;
+  for(const m of MILLS)for(const g of GR){
+    const coef={}; for(const c of CTRY) coef['S'+g+m+c]=1; coef[g+m]=-1;
+    con('R'+(k++),'Despacho',`Acero de ${GRN[g]} embarcado desde ${MILLN[m]}`,coef,'<=',0);
+  }
+  for(const c of CTRY)for(const g of GR){
+    const coef={}; for(const m of MILLS) coef['S'+g+m+c]=1;
+    con('R'+(k++),'Demanda',`Demanda de acero de ${GRN[g]} en ${CN[c]}`,coef,'>=',P.demand[c][g]);
+  }
+  return {vars,cons};
+}
+
+function solveLP(model,rhsDelta){
+  rhsDelta=rhsDelta||{};
+  const {vars,cons}=model; const n=vars.length, m=cons.length;
+  const idx={}; vars.forEach((v,i)=>idx[v.name]=i);
+  const rows=cons.map(c=>{
+    const a=new Float64Array(n); for(const key in c.coef) a[idx[key]]=c.coef[key];
+    let b=c.rhs+(rhsDelta[c.id]||0), sense=c.sense, flip=false;
+    if(b<0){flip=true; for(let j=0;j<n;j++)a[j]=-a[j]; b=-b; sense=sense==='<='?'>=':sense==='>='?'<=':'=';}
+    return {a,b,sense,flip};
+  });
+  let ncol=n; const colNames=vars.map(v=>v.name);
+  rows.forEach((r,i)=>{ if(r.sense!=='='){ r.sc=ncol++; colNames.push((r.sense==='<='?'h':'e')+cons[i].id.slice(1)); } });
+  const artStart=ncol;
+  rows.forEach((r,i)=>{ if(r.sense!=='<='){ r.ac=ncol++; colNames.push('a'+cons[i].id.slice(1)); } });
+  const N=ncol;
+  const T=rows.map(r=>{const t=new Float64Array(N+1); t.set(r.a,0);
+    if(r.sc!==undefined) t[r.sc]=r.sense==='<='?1:-1; if(r.ac!==undefined) t[r.ac]=1; t[N]=r.b; return t;});
+  const basis=rows.map(r=>r.sense==='<='?r.sc:r.ac);
+  const log=[];
+  function pivot(p,q){
+    const pr=T[p], pv=pr[q]; for(let j=0;j<=N;j++) pr[j]/=pv;
+    for(let i=0;i<m;i++){ if(i===p) continue; const f=T[i][q]; if(Math.abs(f)<1e-15) continue;
+      const ri=T[i]; for(let j=0;j<=N;j++) ri[j]-=f*pr[j]; ri[q]=0; }
+    basis[p]=q;
+  }
+  const objective=cost=>{let z=0; for(let i=0;i<m;i++) z+=cost[basis[i]]*T[i][N]; return z;};
+  function run(cost,allowed,phase){
+    let iter=0;
+    while(true){
+      let enter=-1,best=-1e-9; const bland=iter>2000;
+      for(let j=0;j<N;j++){ if(!allowed[j]) continue;
+        let r=cost[j]; for(let i=0;i<m;i++) r-=cost[basis[i]]*T[i][j];
+        if(r<-1e-9){ if(bland){enter=j;break;} if(r<best){best=r;enter=j;} } }
+      if(enter<0) return 'ok';
+      let leave=-1,minr=Infinity;
+      for(let i=0;i<m;i++){ const a=T[i][enter]; if(a>1e-9){ const r=T[i][N]/a;
+        if(r<minr-1e-12||(Math.abs(r-minr)<=1e-12&&basis[i]<basis[leave])){minr=r;leave=i;} } }
+      if(leave<0) return 'unbounded';
+      const out=colNames[basis[leave]];
+      pivot(leave,enter); iter++;
+      log.push({phase,enter:colNames[enter],leave:out,obj:objective(cost)});
+      if(iter>20000) return 'limit';
+    }
+  }
+  const c1=new Float64Array(N); for(let j=artStart;j<N;j++) c1[j]=1;
+  const allowed1=new Array(N).fill(true);
+  let st=run(c1,allowed1,1);
+  if(st!=='ok'||objective(c1)>1e-6) return {status:'infeasible',log,colNames,m,N,nArt:N-artStart};
+  for(let i=0;i<m;i++){ if(basis[i]>=artStart){ for(let j=0;j<artStart;j++){ if(Math.abs(T[i][j])>1e-9){pivot(i,j);break;} } } }
+  const c2=new Float64Array(N); vars.forEach((v,i)=>c2[i]=v.cost);
+  const allowed2=new Array(N).fill(false); for(let j=0;j<artStart;j++) allowed2[j]=true;
+  st=run(c2,allowed2,2);
+  if(st==='unbounded') return {status:'unbounded',log,colNames,m,N,nArt:N-artStart};
+  const x=new Float64Array(n); for(let i=0;i<m;i++){ if(basis[i]<n) x[basis[i]]=Math.abs(T[i][N])<1e-9?0:T[i][N]; }
+  const red=j=>{let r=c2[j];for(let i=0;i<m;i++) r-=c2[basis[i]]*T[i][j];return r;};
+  const duals=rows.map(r=>{const y=r.sense==='<='?-red(r.sc):r.sense==='>='?red(r.sc):-red(r.ac);const v=r.flip?-y:y;return Math.abs(v)<1e-9?0:v;});
+  return {status:'optimal',x,obj:objective(c2),log,colNames,m,N,nArt:N-artStart,duals};
+}
+//</MODEL>
+
+/* ---------- Interfaz ---------- */
+const nf=(d)=>new Intl.NumberFormat('es-CO',{minimumFractionDigits:d,maximumFractionDigits:d});
+const f2=nf(2), f0=nf(0);
+const num=(v,d=2)=>Math.abs(v)<5e-7?(d===0?'0':'0,00'):(d===0?f0:f2).format(v);
+const money=(v)=>'$'+f2.format(v);
+const fc=(v)=>{const s=(Math.round(v*100)/100).toString().replace('.',',');return s;};
+const esc=s=>String(s).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+
+let P=JSON.parse(JSON.stringify(DEFAULT));
+let model=null,res=null,X={},sens=[],activeTab='sol';
+
+const getP=(path)=>path.split('.').reduce((o,k)=>o[k],P);
+const setP=(path,val)=>{const ks=path.split('.');const last=ks.pop();ks.reduce((o,k)=>o[k],P)[last]=val;};
+const inp=(path,label)=>`<input type="number" step="any" min="0" inputmode="decimal" id="in-${path.replace(/\./g,'-')}" data-path="${path}" aria-label="${esc(label)}" value="${getP(path)}">`;
+
+function renderInputs(){
+  let h='';
+  h+=`<h3>Minas</h3><p class="hint">Costo de compra y de embarque del mineral, en $/ton, y suministro disponible en toneladas (tabla 3.7).</p>
+  <div class="tbl"><table><tr><th>Mina</th><th class="n">Compra</th><th class="n">A Pitt.</th><th class="n">A Young.</th><th class="n">Oferta</th></tr>
+  ${SRC.map(s=>`<tr><td>${SRCN[s]}<br><span class="hint">calibre ${SRCORE[s]}</span></td>
+   <td>${inp('buy.'+s,'Costo de compra '+SRCN[s])}</td>
+   <td>${inp('shipOre.'+s+'.P','Embarque de '+SRCN[s]+' a Pittsburgh')}</td>
+   <td>${inp('shipOre.'+s+'.Y','Embarque de '+SRCN[s]+' a Youngstown')}</td>
+   <td>${inp('supply.'+s,'Suministro de '+SRCN[s])}</td></tr>`).join('')}</table></div>`;
+  h+=`<h3>Prensas</h3><p class="hint">Capacidad en toneladas de mineral y costo de procesamiento en $/ton de acero (tabla 3.8).</p>
+  <div class="tbl"><table><tr><th>Prensa</th><th class="n">Capacidad</th><th class="n">Alto</th><th class="n">Bajo</th></tr>
+  ${MILLS.map(m=>`<tr><td>${MILLN[m]}</td>
+   <td>${inp('cap.'+m,'Capacidad de '+MILLN[m])}</td>
+   <td>${inp('proc.H.'+m,'Procesamiento alto calibre en '+MILLN[m])}</td>
+   <td>${inp('proc.L.'+m,'Procesamiento bajo calibre en '+MILLN[m])}</td></tr>`).join('')}</table></div>`;
+  h+=`<h3>Mezcla</h3><p class="hint">Toneladas de mineral B por cada tonelada de mineral A. El caso usa 2 a 1 para alto calibre y 3 a 1 para bajo calibre.</p>
+  <div class="tbl"><table><tr><th>Alto calibre</th><th>Bajo calibre</th></tr><tr><td>${inp('ratio.H','Proporción B a A, alto calibre')}</td><td>${inp('ratio.L','Proporción B a A, bajo calibre')}</td></tr></table></div>`;
+  h+=`<h3>Demanda y embarque de acero</h3><p class="hint">Pedidos en toneladas y costo de embarque en $/ton desde cada prensa (tabla 3.9).</p>
+  <div class="tbl"><table><tr><th>País</th><th>Acero</th><th class="n">Demanda</th><th class="n">Desde Pitt.</th><th class="n">Desde Young.</th></tr>
+  ${CTRY.map(c=>GR.map((g,gi)=>`<tr><td>${gi===0?CN[c]:''}</td><td>${g==='H'?'Alto':'Bajo'}</td>
+   <td>${inp('demand.'+c+'.'+g,'Demanda '+GRN[g]+' '+CN[c])}</td>
+   <td>${inp('shipSteel.'+c+'.'+g+'.P','Embarque '+GRN[g]+' de Pittsburgh a '+CN[c])}</td>
+   <td>${inp('shipSteel.'+c+'.'+g+'.Y','Embarque '+GRN[g]+' de Youngstown a '+CN[c])}</td></tr>`).join('')).join('')}</table></div>
+  <div class="actions"><button class="btn ghost" id="reset" type="button">Restablecer datos del libro</button></div>`;
+  document.getElementById('inputs').innerHTML='<div class="errbar" id="errbar" role="alert" hidden></div>'+h;
+  document.getElementById('reset').addEventListener('click',()=>{P=JSON.parse(JSON.stringify(DEFAULT));BAD.clear();renderInputs();recompute();});
+}
+
+function exprOf(coef,order){
+  let s='',first=true;
+  for(const k of order){const v=coef[k]; if(!v) continue; const a=Math.abs(v); const t=(a===1?'':fc(a)+'·')+k;
+    if(first){s+=(v<0?'−':'')+t;first=false;}else s+=(v<0?' − ':' + ')+t;}
+  return s||'0';
+}
+
+function recompute(){
+  model=buildModel(P);
+  res=solveLP(model);
+  X={};
+  if(res.status==='optimal') model.vars.forEach((v,i)=>X[v.name]=res.x[i]);
+  TR=res.status==='optimal'?tableauRun(reducedModel(P)):null; tabStep=0;
+  sens=[];
+  if(res.status==='optimal'){
+    const ids=['R1','R2','R3','R4'].concat(model.cons.filter(c=>c.group==='Demanda').map(c=>c.id));
+    for(const id of ids){
+      const c=model.cons.find(q=>q.id===id);
+      const r2=solveLP(model,{[id]:1});
+      sens.push({c,delta:r2.status==='optimal'?r2.obj-res.obj:null});
+    }
+  }
+  render();
+}
+
+const sum=(names)=>names.reduce((a,k)=>a+(X[k]||0),0);
+function parts(){
+  let buy=0,prod=0,ship=0;
+  for(const v of model.vars){const q=(X[v.name]||0)*v.cost;
+    if(v.group==='compra')buy+=q; else if(v.group==='produccion')prod+=q; else ship+=q;}
+  return {buy,prod,ship};
+}
+
+function renderKpis(){
+  const el=document.getElementById('kpis');
+  if(res.status!=='optimal'){
+    el.innerHTML=`<div class="kpi main" style="grid-column:1/-1"><div class="lbl">Estado del modelo</div>
+    <div class="val" style="color:var(--bad)">${res.status==='infeasible'?'Sin solución factible':'Problema no acotado'}</div>
+    <div class="sub">${res.status==='infeasible'?'Con estos datos no se puede cubrir la demanda. Revise capacidades, suministros y proporciones de mezcla.':'Revise que los costos no sean cero o negativos.'}</div></div>`;
+    return;
+  }
+  const A=sum(['IBP','IBY']), B=sum(['ICP','ICY']);
+  const steel=sum(['HP','LP','HY','LY']);
+  const uP=sum(['OBPH','OBPL','OCPH','OCPL']), uY=sum(['OBYH','OBYL','OCYH','OCYL']);
+  const pc=(u,c)=>c>0?Math.min(100,u/c*100):0;
+  el.innerHTML=`
+  <div class="kpi main"><div class="lbl">Costo total mínimo anual <span class="pill ok">Óptimo</span></div>
+    <div class="val">${money(res.obj)}</div><div class="sub">Compra + producción + distribución, en dólares</div></div>
+  <div class="kpi"><div class="lbl">Mineral a comprar</div><div class="val">${f2.format(A+B)} t</div>
+    <div class="sub">Butte ${f2.format(A)} t · Cheyenne ${f2.format(B)} t</div></div>
+  <div class="kpi"><div class="lbl">Acero a producir</div><div class="val">${f2.format(steel)} t</div>
+    <div class="sub">Alto ${f2.format(sum(['HP','HY']))} t · Bajo ${f2.format(sum(['LP','LY']))} t</div></div>
+  <div class="kpi"><div class="lbl">Uso de las prensas</div>
+    <div class="sub" style="margin-top:6px">Pittsburgh ${f2.format(uP)} de ${f0.format(P.cap.P)} t</div>
+    <div class="bar"><i class="${pc(uP,P.cap.P)>99.9?'full':''}" style="width:${pc(uP,P.cap.P)}%"></i></div>
+    <div class="sub" style="margin-top:8px">Youngstown ${f2.format(uY)} de ${f0.format(P.cap.Y)} t</div>
+    <div class="bar"><i class="${pc(uY,P.cap.Y)>99.9?'full':''}" style="width:${pc(uY,P.cap.Y)}%"></i></div></div>`;
+}
+
+
+function reducedModel(P){
+  const ML=['P','Y'],GL=['H','L'],CL=['J','K','T','M'];
+  const MN2={P:'Pittsburgh',Y:'Youngstown'},GN2={H:'alto calibre',L:'bajo calibre'},CN2={J:'Japón',K:'Corea',T:'Taiwán',M:'México'};
+  const oreC={B:{},C:{}},unit={},oreUnit={};
+  for(const mm of ML){oreC.B[mm]=P.buy.B+P.shipOre.B[mm];oreC.C[mm]=P.buy.C+P.shipOre.C[mm];}
+  for(const mm of ML)for(const g of GL){const r=P.ratio[g];oreUnit[mm+g]=(oreC.B[mm]+r*oreC.C[mm])/(1+r);unit[mm+g]=oreUnit[mm+g]+P.proc[g][mm];}
+  const vars=[];
+  for(const g of GL)for(const mm of ML)for(const c of CL)vars.push({name:'S'+g+mm+c,g,m:mm,c,cost:unit[mm+g]+P.shipSteel[c][g][mm]});
+  const cons=[];
+  for(const g of GL)for(const c of CL)cons.push({id:'D'+g+c,text:'Demanda de acero de '+GN2[g]+' en '+CN2[c],coef:{['S'+g+'P'+c]:1,['S'+g+'Y'+c]:1},sense:'=',rhs:P.demand[c][g]});
+  for(const mm of ML){const coef={};vars.filter(v=>v.m===mm).forEach(v=>{coef[v.name]=1;});cons.push({id:'C'+mm,text:'Capacidad de '+MN2[mm],coef,sense:'<=',rhs:P.cap[mm]});}
+  for(const s of ['B','C']){const coef={};vars.forEach(v=>{const r=P.ratio[v.g];coef[v.name]=s==='B'?1/(1+r):r/(1+r);});cons.push({id:'M'+s,text:'Suministro de '+(s==='B'?'Butte Minerals':'Cheyenne Mines'),coef,sense:'<=',rhs:P.supply[s]});}
+  return {vars,cons,unit,oreUnit,oreC};
+}
+function tableauRun(rm){
+  const vars=rm.vars,cons=rm.cons,n=vars.length,m=cons.length;
+  const names=vars.map(v=>v.name),cost=vars.map(v=>v.cost);
+  const idx={};names.forEach((nm,i)=>{idx[nm]=i;});
+  const A=cons.map(c=>{const a=new Array(n).fill(0);for(const k in c.coef)a[idx[k]]=c.coef[k];return a;});
+  const slackOf=[],artOf=[],art=new Set();
+  cons.forEach((c,i)=>{if(c.sense==='<='){slackOf[i]=names.length;names.push('h'+c.id);cost.push(0);}});
+  cons.forEach((c,i)=>{if(c.sense==='='){artOf[i]=names.length;art.add(names.length);names.push('a'+c.id.slice(1));cost.push(0);}});
+  const N=names.length;
+  const T=cons.map((c,i)=>{const r=new Array(N+1).fill(0);for(let j=0;j<n;j++)r[j]=A[i][j];if(slackOf[i]!==undefined)r[slackOf[i]]=1;if(artOf[i]!==undefined)r[artOf[i]]=1;r[N]=c.rhs;return r;});
+  const basis=cons.map((c,i)=>c.sense==='<='?slackOf[i]:artOf[i]);
+  const active=new Array(N).fill(true);
+  const tables=[];
+  const redOf=(cj,j)=>{let r=cj[j];for(let i=0;i<m;i++)r-=cj[basis[i]]*T[i][j];return r;};
+  function snapshot(phase,cj,e,l,note){
+    const red=new Array(N).fill(0);let z=0;
+    for(let j=0;j<N;j++){const r=redOf(cj,j);red[j]=Math.abs(r)<1e-9?0:r;}
+    for(let i=0;i<m;i++)z+=cj[basis[i]]*T[i][N];
+    const ratios=T.map(r=>e!=null&&r[e]>1e-9?r[N]/r[e]:null);
+    tables.push({phase,cj:cj.slice(),cols:active.map((a,j)=>a?j:-1).filter(j=>j>=0),basis:basis.slice(),T:T.map(r=>r.slice()),red,z,enter:e,leave:l,ratios,note:note||''});
+  }
+  function pivot(l,e){const pr=T[l],pv=pr[e];for(let j=0;j<=N;j++)pr[j]/=pv;for(let i=0;i<m;i++){if(i===l)continue;const f=T[i][e];if(Math.abs(f)<1e-15)continue;for(let j=0;j<=N;j++)T[i][j]-=f*pr[j];T[i][e]=0;}basis[l]=e;}
+  function runPhase(phase,cj){
+    let it=0;
+    while(true){
+      let e=-1,best=-1e-9;
+      for(let j=0;j<N;j++){if(!active[j])continue;const r=redOf(cj,j);if(r<best-1e-12){best=r;e=j;}}
+      if(e<0){snapshot(phase,cj,null,null,'optimal');return 'ok';}
+      let l=-1,mn=Infinity;
+      for(let i=0;i<m;i++){const a=T[i][e];if(a>1e-9){const q=T[i][N]/a;if(q<mn-1e-12||(Math.abs(q-mn)<=1e-12&&basis[i]<basis[l])){mn=q;l=i;}}}
+      if(l<0){snapshot(phase,cj,e,null,'unbounded');return 'unbounded';}
+      snapshot(phase,cj,e,l);
+      pivot(l,e);it++;
+      if(it>300)return 'limit';
+    }
+  }
+  const c1=new Array(N).fill(0);art.forEach(j=>{c1[j]=1;});
+  let st=runPhase(1,c1);
+  const z1=basis.reduce((s,b,i)=>s+c1[b]*T[i][N],0);
+  if(st!=='ok'||z1>1e-6)return {status:'infeasible',tables,names,vars,cons,N,m,nArt:art.size};
+  for(let i=0;i<m;i++){if(art.has(basis[i])){for(let j=0;j<N;j++){if(!art.has(j)&&Math.abs(T[i][j])>1e-9){pivot(i,j);break;}}}}
+  art.forEach(j=>{active[j]=false;});
+  const c2=cost.slice();
+  st=runPhase(2,c2);
+  if(st!=='ok')return {status:st,tables,names,vars,cons,N,m,nArt:art.size};
+  const x={};vars.forEach(v=>{x[v.name]=0;});basis.forEach((b,i)=>{if(b<n)x[names[b]]=Math.abs(T[i][N])<1e-9?0:T[i][N];});
+  const obj=basis.reduce((s,b,i)=>s+c2[b]*T[i][N],0);
+  return {status:'optimal',tables,names,vars,cons,N,m,nArt:art.size,x,obj};
+}
+const TABS=[['sol','Solución'],['var','1 Variables'],['obj','2 Función objetivo'],['res','3 Restricciones'],['sim','4 Simplex'],['tab','5 Tablas paso a paso'],['sen','6 Sensibilidad'],['mat','7 Matrices']];
+let TR=null,tabStep=0;
+
+function renderTabs(){
+  const t=document.getElementById('tabs');
+  t.innerHTML=TABS.map(([id,l])=>`<button type="button" role="tab" id="tab-${id}" aria-selected="${id===activeTab}" aria-controls="pane-${id}" data-tab="${id}">${l}</button>`).join('');
+  t.querySelectorAll('button').forEach(b=>b.addEventListener('click',()=>{activeTab=b.dataset.tab;showTab();}));
+}
+function showTab(){
+  TABS.forEach(([id])=>{
+    const b=document.getElementById('tab-'+id); if(b) b.setAttribute('aria-selected',id===activeTab);
+    const p=document.getElementById('pane-'+id); if(p) p.hidden=id!==activeTab;
+  });
+}
+
+function noSol(){return `<div class="pane"><p>No hay solución óptima con los datos actuales. Ajuste los datos del caso para continuar.</p></div>`;}
+
+function paneVars(){
+  const groups=[['compra','Compra y embarque de mineral','Lo que la gerencia decide en la compra: cuánto mineral de cada mina va a cada prensa.'],
+   ['produccion','Producción de acero','Cuánto acero de cada calibre se produce en cada prensa y qué mineral se mezcla para hacerlo.'],
+   ['distribucion','Distribución del acero','Cuántas toneladas de cada calibre salen de cada prensa hacia cada país.']];
+  let h=`<div class="pane"><h3>Variables de decisión</h3><p>El caso se descompone en tres áreas funcionales. Cada una aporta sus variables, en toneladas. Son ${model.vars.length} en total.</p>`;
+  for(const [g,t,d] of groups){
+    h+=`<div class="gap"><strong>${t}</strong><p>${d}</p><div class="tbl"><table><tr><th>Variable</th><th>Qué representa</th><th class="n">Valor óptimo (t)</th><th class="n">Costo ($/t)</th></tr>
+    ${model.vars.filter(v=>v.group===g).map(v=>`<tr><td class="m">${v.name}</td><td>${esc(v.desc)}</td><td class="n">${res.status==='optimal'?num(X[v.name]):'—'}</td><td class="n">${f2.format(v.cost)}</td></tr>`).join('')}</table></div></div>`;
+  }
+  return h+'</div>';
+}
+
+function paneObj(){
+  const order=model.vars.map(v=>v.name);
+  const mk=(g)=>{const co={};model.vars.filter(v=>v.group===g).forEach(v=>co[v.name]=v.cost);return exprOf(co,order);};
+  const pt=res.status==='optimal'?parts():null;
+  const blocks=[['compra','Costo de compra','Precio del mineral más su embarque a cada prensa. Por ejemplo, el mineral de Butte hacia Pittsburgh cuesta '+P.buy.B+' + '+P.shipOre.B.P+' = '+(P.buy.B+P.shipOre.B.P)+' $/t.','buy'],
+    ['produccion','Costo de producción','Costo de procesar cada tonelada de acero en cada prensa. Las variables de mezcla no tienen costo propio.','prod'],
+    ['distribucion','Costo de distribución','Embarque del acero terminado desde cada prensa hacia los cuatro países.','ship']];
+  let h=`<div class="pane"><h3>Función objetivo</h3><p>Minimizar el costo total anual: <strong>costo de compra + costo de producción + costo de distribución</strong>.</p>`;
+  for(const [g,t,d,k] of blocks){
+    h+=`<div class="gap"><strong>${t}</strong><p>${d}</p><pre class="f">${esc(mk(g))}</pre>${pt?`<p>Valor en el óptimo: <strong>${money(pt[k])}</strong></p>`:''}</div>`;
+  }
+  if(pt) h+=`<div class="note">Costo total en el óptimo: <strong>${money(pt.buy+pt.prod+pt.ship)}</strong></div>`;
+  return h+'</div>';
+}
+
+function paneRes(){
+  const order=model.vars.map(v=>v.name);
+  const sym={'<=':'≤','>=':'≥','=':'='};
+  let h=`<div class="pane"><h3>Restricciones</h3><p>Son ${model.cons.length} restricciones, numeradas como en el libro, más la no negatividad de todas las variables. La última columna dice si la restricción limita la solución (activa) o si queda margen (holgura).</p><div class="tbl"><table>
+  <tr><th>#</th><th>Restricción</th><th>Expresión</th><th class="n">Lado der.</th><th class="n">En el óptimo</th><th>Estado</th></tr>`;
+  let last='';
+  for(const c of model.cons){
+    if(c.group!==last){h+=`<tr><td colspan="6" style="background:var(--bg);font-weight:600;color:var(--steel)">${c.group}</td></tr>`;last=c.group;}
+    let lhs=null,st='—';
+    if(res.status==='optimal'){lhs=0;for(const k in c.coef)lhs+=c.coef[k]*(X[k]||0);
+      const gap=Math.abs(lhs-c.rhs);
+      st=gap<1e-6?'<span class="pill warn">Activa</span>':(c.sense==='='?'<span class="pill bad">Revisar</span>':`<span class="pill ok">Holgura ${f2.format(gap)}</span>`);}
+    h+=`<tr><td>${c.id.slice(1)}</td><td>${esc(c.text)}</td><td class="m">${esc(exprOf(c.coef,order))} ${sym[c.sense]} ${fc(c.rhs)}</td><td class="n">${f2.format(c.rhs)}</td><td class="n">${lhs===null?'—':f2.format(Math.abs(lhs)<5e-7?0:lhs)}</td><td>${st}</td></tr>`;
+  }
+  h+=`</table></div></div>`;
+  return h;
+}
+
+function paneSim(){
+  const r=res; const ph1=r.log.filter(l=>l.phase===1).length, ph2=r.log.filter(l=>l.phase===2).length;
+  const nSl=r.colNames.filter(n=>/^h\d/.test(n)).length, nSu=r.colNames.filter(n=>/^e\d/.test(n)).length;
+  let h=`<div class="pane"><h3>Método simplex</h3>
+  <p>El problema se lleva a forma estándar: a cada restricción ≤ se le suma una variable de holgura (<span class="m">h</span>), a cada ≥ se le resta una de exceso (<span class="m">e</span>) y a las ≥ y = se les agrega una variable artificial (<span class="m">a</span>) para tener una primera solución básica.</p>
+  <p>Aquí quedan ${model.vars.length} variables de decisión, ${nSl} de holgura, ${nSu} de exceso y ${r.nArt} artificiales, sobre ${r.m} restricciones.</p>
+  <p><strong>Fase I</strong> minimiza la suma de las artificiales hasta llevarla a cero, lo que demuestra que existe un plan que cumple todo. <strong>Fase II</strong> minimiza el costo real partiendo de ese plan.</p>`;
+  if(r.status==='optimal'){
+    h+=`<div class="note">Resultado: ${ph1} iteraciones en la fase I y ${ph2} en la fase II. El simplex se detiene cuando ningún costo reducido es negativo, y eso garantiza que el plan es óptimo.</div>
+    <details><summary>Ver las ${r.log.length} iteraciones</summary><div class="scroll"><table><tr><th class="n">#</th><th>Fase</th><th>Entra a la base</th><th>Sale de la base</th><th class="n">Función de la fase</th></tr>
+    ${r.log.map((l,i)=>`<tr><td class="n">${i+1}</td><td>${l.phase===1?'I':'II'}</td><td class="m">${l.enter}</td><td class="m">${l.leave}</td><td class="n">${f2.format(l.obj)}</td></tr>`).join('')}</table></div></details>`;
+  } else h+=`<div class="note">El simplex terminó con estado: ${r.status==='infeasible'?'sin solución factible':'no acotado'}.</div>`;
+  return h+'</div>';
+}
+
+function tfmt(v){ if(Math.abs(v)<1e-9) return '0'; return String(Math.round(v*100)/100).replace('-','−').replace('.',','); }
+const GNm={H:'alto',L:'bajo'},MNm={P:'Pittsburgh',Y:'Youngstown'},CNm={J:'Japón',K:'Corea',T:'Taiwán',M:'México'};
+function colMeaning(n){
+  let m;
+  if((m=/^S([HL])([PY])([JKTM])$/.exec(n))) return `Acero ${GNm[m[1]]} calibre de ${MNm[m[2]]} a ${CNm[m[3]]} (t)`;
+  if((m=/^h(C[PY]|M[BC])$/.exec(n))) return 'Holgura de '+(m[1][0]==='C'?'capacidad de '+MNm[m[1][1]]:'suministro de '+(m[1][1]==='B'?'Butte':'Cheyenne'));
+  if((m=/^a([HL])([JKTM])$/.exec(n))) return `Artificial: demanda de acero ${GNm[m[1]]} en ${CNm[m[2]]}`;
+  return n;
+}
+function paneTab(){
+  if(!TR||!TR.tables.length) return '<div class="pane"><p>No hay tablas para mostrar con estos datos.</p></div>';
+  const tb=TR.tables; if(tabStep>=tb.length) tabStep=tb.length-1; if(tabStep<0) tabStep=0;
+  const t=tb[tabStep], names=TR.names, m=TR.m;
+  const ph1=tb.filter(x=>x.phase===1).length, ph2=tb.filter(x=>x.phase===2).length;
+  const first2=tb.findIndex(x=>x.phase===2);
+  let h=`<div class="pane"><h3>Solución paso por paso: todas las tablas simplex</h3>
+  <p>Aquí se resuelve el problema con el método simplex de dos fases, tabla por tabla. Para que cada tabla quepa en pantalla, el modelo de 32 variables y 28 restricciones se reduce <em>sin cambiar el resultado</em>: las proporciones de mezcla (2 a 1 y 3 a 1) permiten sustituir el mineral por el acero que produce. Quedan <strong>${TR.vars.length} variables de envío</strong> (<span class="m">S</span> + calibre + prensa + país) y <strong>${m} restricciones</strong> (8 de demanda, 2 de capacidad y 2 de suministro). El costo óptimo es el mismo que el del modelo completo.</p>
+  <p>Hay <strong>${tb.length} tablas</strong>: ${ph1} de la fase I (llevar a cero la suma de las ${TR.nArt} variables artificiales) y ${ph2} de la fase II (minimizar el costo real).</p>
+  <div class="stepper"><button class="btn ghost" type="button" data-step="first">Primera</button><button class="btn ghost" type="button" data-step="prev">← Anterior</button>
+  <span class="cur" aria-live="polite">Tabla ${tabStep+1} de ${tb.length} · Fase ${t.phase===1?'I':'II'}</span>
+  <button class="btn" type="button" data-step="next">Siguiente →</button><button class="btn ghost" type="button" data-step="last">Última</button></div>`;
+  const cols=t.cols;
+  h+=`<div class="tbl"><table class="sx"><tr><th>Base</th><th class="n">c<sub>B</sub></th>`+cols.map(j=>`<th class="n ${j===t.enter?'pc':''}">${names[j]}</th>`).join('')+`<th class="n">Solución</th><th class="n">Cociente</th></tr>`;
+  h+=`<tr><td><i>c<sub>j</sub></i></td><td></td>`+cols.map(j=>`<td class="n ${j===t.enter?'pc':''}"><i>${tfmt(t.cj[j])}</i></td>`).join('')+`<td></td><td></td></tr>`;
+  for(let i=0;i<m;i++){
+    const isL=i===t.leave;
+    h+=`<tr><td class="${isL?'pr':''}"><b>${names[t.basis[i]]}</b></td><td class="n ${isL?'pr':''}">${tfmt(t.cj[t.basis[i]])}</td>`+
+      cols.map(j=>{const cls=(isL&&j===t.enter)?'pv':isL?'pr':j===t.enter?'pc':'';return `<td class="n ${cls}">${tfmt(t.T[i][j])}</td>`;}).join('')+
+      `<td class="n ${isL?'pr':''}">${tfmt(t.T[i][TR.N])}</td><td class="n ${isL?'pr':''}">${t.ratios[i]==null?'':tfmt(t.ratios[i])}</td></tr>`;
+  }
+  h+=`<tr class="zr"><td>c<sub>j</sub> − z<sub>j</sub></td><td></td>`+cols.map(j=>`<td class="n ${t.red[j]<0?'neg2':''} ${j===t.enter?'pc':''}">${tfmt(t.red[j])}</td>`).join('')+`<td class="n">Z = ${tfmt(t.z)}</td><td></td></tr></table></div>`;
+  h+=`<div class="expl">`;
+  if(t.enter!=null&&t.leave!=null){
+    const e=names[t.enter], l=names[t.basis[t.leave]], rv=t.red[t.enter], q=t.ratios[t.leave];
+    h+=`<p><b>1. Variable que entra:</b> <span class="m">${e}</span> (${esc(colMeaning(e))}). Tiene el costo reducido más negativo, ${tfmt(rv)}: meterla a la base es lo que más reduce la función de la fase.</p>
+    <p><b>2. Variable que sale:</b> se divide la columna Solución entre los coeficientes positivos de la columna que entra. El menor cociente es ${tfmt(q)}, en la fila de <span class="m">${l}</span>; esa variable sale para no violar ninguna restricción.</p>
+    <p><b>3. Pivote:</b> el elemento resaltado en naranja, ${tfmt(t.T[t.leave][t.enter])}. Se divide su fila entre el pivote y se hacen ceros en el resto de la columna. El resultado es la tabla ${tabStep+2}. La función pasa de ${tfmt(t.z)} a ${tfmt(tb[tabStep+1]?tb[tabStep+1].z:t.z)}.</p>`;
+  } else if(t.phase===1){
+    h+=`<p><b>Fin de la fase I:</b> ningún costo reducido es negativo y la suma de artificiales vale 0. Existe un plan que cumple toda la demanda y los límites. Se eliminan las columnas artificiales y comienza la fase II con el costo real de cada envío.</p>`;
+  } else {
+    h+=`<p><b>Tabla óptima:</b> ningún costo reducido es negativo, así que ningún cambio puede bajar el costo. El valor mínimo es <b>Z = ${money(t.z)}</b>.</p>
+    <p>Lectura: las variables de la columna Base toman el valor de la columna Solución y las demás valen 0. Si algún costo reducido de una variable no básica es 0, existe una solución óptima alterna con el mismo costo.</p>`;
+  }
+  h+=`</div>`;
+  if(first2===tabStep) h+=`<div class="note">Esta es la primera tabla de la fase II. La fila c<sub>j</sub> ahora lleva los costos reales por tonelada entregada y se recalcularon los costos reducidos.</div>`;
+  h+=`<details><summary>Qué significa cada columna</summary><div class="tbl"><table><tr><th>Columna</th><th>Significado</th></tr>${names.map(n=>`<tr><td class="m">${n}</td><td>${esc(colMeaning(n))}</td></tr>`).join('')}</table></div></details>`;
+  return h+'</div>';
+}
+
+function paneSol(){
+  const pt=parts(), tot=pt.buy+pt.prod+pt.ship;
+  const pc=v=>tot>0?v/tot*100:0;
+  let h=`<div class="pane"><h3>Plan óptimo</h3>
+  <p>Así se reparte el costo total de <strong>${money(tot)}</strong>.</p>
+  <div class="stack" role="img" aria-label="Reparto del costo total entre compra, producción y distribución">
+   <div style="width:${pc(pt.buy)}%;background:var(--c1)"></div><div style="width:${pc(pt.prod)}%;background:var(--c2)"></div><div style="width:${pc(pt.ship)}%;background:var(--c3)"></div></div>
+  <div class="legend">
+   <span style="--k:var(--c1)">Compra ${money(pt.buy)} (${f2.format(pc(pt.buy))}%)</span>
+   <span style="--k:var(--c2)">Producción ${money(pt.prod)} (${f2.format(pc(pt.prod))}%)</span>
+   <span style="--k:var(--c3)">Distribución ${money(pt.ship)} (${f2.format(pc(pt.ship))}%)</span></div>
+
+  <div class="gap"><strong>Compra de mineral</strong><div class="tbl"><table><tr><th>Mina</th><th class="n">A Pittsburgh (t)</th><th class="n">A Youngstown (t)</th><th class="n">Total (t)</th><th class="n">Oferta (t)</th></tr>
+  ${SRC.map(s=>`<tr><td>${SRCN[s]} (calibre ${SRCORE[s]})</td><td class="n">${num(X['I'+s+'P'])}</td><td class="n">${num(X['I'+s+'Y'])}</td><td class="n">${num(X['I'+s+'P']+X['I'+s+'Y'])}</td><td class="n">${f0.format(P.supply[s])}</td></tr>`).join('')}</table></div></div>
+
+  <div class="gap"><strong>Producción y mezcla</strong><div class="tbl"><table><tr><th>Prensa</th><th>Acero</th><th class="n">Mineral A (t)</th><th class="n">Mineral B (t)</th><th class="n">Acero (t)</th></tr>
+  ${MILLS.map(m=>GR.map(g=>`<tr><td>${MILLN[m]}</td><td>${g==='H'?'Alto':'Bajo'}</td><td class="n">${num(X['OB'+m+g])}</td><td class="n">${num(X['OC'+m+g])}</td><td class="n">${num(X[g+m])}</td></tr>`).join('')).join('')}
+  <tr class="tot"><td colspan="2">Total</td><td class="n">${num(sum(model.vars.filter(v=>/^OB/.test(v.name)).map(v=>v.name)))}</td><td class="n">${num(sum(model.vars.filter(v=>/^OC/.test(v.name)).map(v=>v.name)))}</td><td class="n">${num(sum(['HP','LP','HY','LY']))}</td></tr></table></div></div>
+
+  <div class="gap"><strong>Distribución a los países</strong><div class="tbl"><table><tr><th>País</th><th>Acero</th><th class="n">Desde Pittsburgh (t)</th><th class="n">Desde Youngstown (t)</th><th class="n">Entregado (t)</th><th class="n">Demanda (t)</th></tr>
+  ${CTRY.map(c=>GR.map(g=>{const a=X['S'+g+'P'+c],b=X['S'+g+'Y'+c];return `<tr><td>${CN[c]}</td><td>${g==='H'?'Alto':'Bajo'}</td><td class="n">${num(a)}</td><td class="n">${num(b)}</td><td class="n">${num(a+b)}</td><td class="n">${f0.format(P.demand[c][g])}</td></tr>`;}).join('')).join('')}</table></div></div>`;
+  const uP=sum(['OBPH','OBPL','OCPH','OCPL']);
+  if(uP>=P.cap.P-1e-6) h+=`<div class="note">Pittsburgh trabaja a plena capacidad, a pesar de que Youngstown tiene margen. Pittsburgh procesa más barato, así que el modelo lo llena primero.</div>`;
+  return h+'</div>';
+}
+
+function paneSen(){
+  let h=`<div class="pane"><h3>Análisis de sensibilidad</h3>
+  <p>Para cada límite del problema se agrega una tonelada y se resuelve el modelo de nuevo. La diferencia en el costo total es el precio sombra: cuánto valdría relajar ese límite en una tonelada, o cuánto cuesta atender una tonelada más de demanda.</p>
+  <div class="tbl"><table><tr><th>Límite</th><th class="n">Valor actual (t)</th><th class="n">Cambio en el costo con +1 t</th><th>Lectura</th></tr>`;
+  for(const s of sens){
+    const d=s.delta, c=s.c;
+    let cls='',txt='',lec='';
+    if(d===null){txt='—';lec='Sin solución con +1 t';}
+    else{
+      txt=(d>0?'+':d<0?'−':'')+money(Math.abs(d)).replace('$','$'); if(Math.abs(d)<5e-7)txt='$0,00';
+      cls=d>5e-7?'pos':d<-5e-7?'neg':'';
+      if(c.group==='Demanda') lec=`Cada tonelada adicional pedida cuesta ${money(Math.abs(d))} más`;
+      else lec=Math.abs(d)<5e-7?'No limita el plan: sobra capacidad':`Una tonelada más de ${c.group==='Capacidad'?'capacidad':'suministro'} ahorra ${money(Math.abs(d))}`;
+    }
+    h+=`<tr><td>${esc(c.text)}</td><td class="n">${f2.format(c.rhs)}</td><td class="n ${cls}">${txt}</td><td>${lec}</td></tr>`;
+  }
+  h+=`</table></div><div class="note">Estos valores son válidos mientras el plan cambie poco. Si se mueve el límite en cantidades grandes, conviene volver a resolver con los datos nuevos.</div></div>`;
+  return h;
+}
+
+function mfmt(v){ if(Math.abs(v)<1e-12) return '0'; const r=Math.round(v*1e4)/1e4; return String(r).replace('-','−').replace('.',','); }
+function mtable(rowL,colL,data,o){
+  o=o||{};
+  let h='<div class="tbl"><table class="mt"><tr><th></th>'+colL.map(c=>`<th class="n">${c}</th>`).join('')+(o.rowSum?`<th class="n">${o.rowSum}</th>`:'')+'</tr>';
+  data.forEach((row,i)=>{h+=`<tr><td><b>${rowL[i]}</b></td>`+row.map(v=>`<td class="n">${f2.format(v)}</td>`).join('')+(o.rowSum?`<td class="n"><b>${f2.format(row.reduce((a,b)=>a+b,0))}</b></td>`:'')+'</tr>';});
+  if(o.colSum){h+=`<tr class="tot"><td>${o.colSum}</td>`+colL.map((_,j)=>`<td class="n">${f2.format(data.reduce((a,r)=>a+r[j],0))}</td>`).join('')+(o.rowSum?`<td class="n">${f2.format(data.flat().reduce((a,b)=>a+b,0))}</td>`:'')+'</tr>';}
+  return h+'</table></div>';
+}
+function paneMat(){
+  const V=model.vars,C=model.cons,n=V.length,m=C.length;
+  const sym={'<=':'≤','>=':'≥','=':'='};
+  const xs=V.map(v=>X[v.name]||0);
+  const lhs=C.map(c=>{let s=0;for(const k in c.coef)s+=c.coef[k]*(X[k]||0);return Math.abs(s)<1e-9?0:s;});
+  const ctx=V.reduce((s,v,i)=>s+v.cost*xs[i],0);
+  const y=res.duals||[];
+  const ytb=C.reduce((s,c,i)=>s+(y[i]||0)*c.rhs,0);
+  const cnt=s=>C.filter(c=>c.sense===s).length;
+  const MN=['Pittsburgh','Youngstown'], K=['Alto calibre','Bajo calibre'], CT=['Japón','Corea','Taiwán','México'], ck=['J','K','T','M'];
+  let h=`<div class="pane"><h3>Matrices del problema</h3>
+  <p>El caso completo se puede escribir con matrices. Con las ${n} variables ordenadas en un vector x de ${n}×1, el modelo queda así:</p>
+  <pre class="f">Minimizar   z = cᵀ·x
+sujeto a    A·x ≤ b    (${cnt('<=')} filas)
+            A·x = b    (${cnt('=')} filas)
+            A·x ≥ b    (${cnt('>=')} filas)
+            x ≥ 0</pre>
+  <p><b>c</b> es el vector de costos (1×${n}), <b>A</b> la matriz de coeficientes (${m}×${n}) y <b>b</b> el vector de lados derechos (${m}×1). Cada fila de A es una de las restricciones del libro y cada columna es una variable de decisión.</p>
+  <div class="gap"><strong>Matriz A con el vector c y la solución x*</strong>
+  <p>Arriba va el costo de cada variable, abajo su valor óptimo. Las casillas con color tienen un coeficiente distinto de cero; el resto son ceros. Al final de cada fila están el sentido, el lado derecho b y el valor de A·x* en el óptimo.</p>
+  <div class="mx"><table><tr><th>Fila</th>${V.map(v=>`<th>${v.name}</th>`).join('')}<th>Sentido</th><th>b</th><th>A·x*</th></tr>
+  <tr class="cv"><td>c ($/t)</td>${V.map(v=>`<td>${mfmt(v.cost)}</td>`).join('')}<td>mín</td><td>z*</td><td>${f2.format(ctx)}</td></tr>`;
+  C.forEach((c,i)=>{h+=`<tr><td>${c.id}</td>${V.map(v=>{const a=c.coef[v.name]||0;return `<td class="${a?'nz':'z'}">${mfmt(a)}</td>`;}).join('')}<td>${sym[c.sense]}</td><td>${f2.format(c.rhs)}</td><td>${f2.format(lhs[i])}</td></tr>`;});
+  h+=`<tr class="xs"><td>x* (t)</td>${xs.map(v=>`<td>${f2.format(v)}</td>`).join('')}<td colspan="3">x ≥ 0</td></tr></table></div></div>`;
+
+  const costOre=SRC.map(s=>MILLS.map(mm=>P.buy[s]+P.shipOre[s][mm]));
+  const buyX=SRC.map(s=>MILLS.map(mm=>X['I'+s+mm]||0));
+  const procM=GR.map(g=>MILLS.map(mm=>P.proc[g][mm]));
+  const mixM=GR.map(g=>[1/(1+P.ratio[g]),P.ratio[g]/(1+P.ratio[g])]);
+  const shipH=MILLS.map(mm=>ck.map(c=>P.shipSteel[c].H[mm]));
+  const shipL=MILLS.map(mm=>ck.map(c=>P.shipSteel[c].L[mm]));
+  const demM=GR.map(g=>ck.map(c=>P.demand[c][g]));
+  const xH=MILLS.map(mm=>ck.map(c=>X['SH'+mm+c]||0));
+  const xL=MILLS.map(mm=>ck.map(c=>X['SL'+mm+c]||0));
+  const SN=SRC.map(s=>SRCN[s]);
+  const ore=MILLS.map(mm=>GR.map(g=>[X['OB'+mm+g]||0,X['OC'+mm+g]||0]));
+  const card=(t,d,body,wide)=>`<div class="mcard${wide?' wide':''}"><strong>${t}</strong><p class="hint">${d}</p>${body}</div>`;
+  h+=`<div class="gap"><strong>Matrices de los datos del caso</strong>
+  <p>Las tablas del libro son matrices pequeñas. A la izquierda de cada par van los datos y a la derecha el plan óptimo que les corresponde.</p><div class="mgrid">`;
+  h+=card('Costo de compra más embarque ($/t)','Filas: minas. Columnas: prensas. Es la tabla 3.7 con la compra y el embarque sumados.',mtable(SN,MN,costOre));
+  h+=card('Mineral comprado (t)','Plan óptimo: cuánto mineral de cada mina llega a cada prensa.',mtable(SN,MN,buyX,{rowSum:'Total',colSum:'Total'}));
+  h+=card('Costo de procesamiento ($/t)','Filas: calibre. Columnas: prensas (tabla 3.8).',mtable(K,MN,procM));
+  h+=card('Proporción de mineral por tonelada de acero','Matriz de mezcla: columnas mineral A y mineral B. Alto calibre mezcla B y A en 2 a 1; bajo calibre en 3 a 1.',mtable(K,['Mineral A','Mineral B'],mixM,{rowSum:'Suma'}));
+  MILLS.forEach((mm,i)=>{h+=card(`Mineral usado en ${MN[i]} (t)`,'Filas: calibre producido. Columnas: mineral usado.',mtable(K,['Mineral A','Mineral B'],ore[i],{rowSum:'Acero producido',colSum:'Total'}));});
+  h+=card('Costo de embarque, alto calibre ($/t)','Filas: prensas. Columnas: países (tabla 3.9).',mtable(MN,CT,shipH),true);
+  h+=card('Costo de embarque, bajo calibre ($/t)','Filas: prensas. Columnas: países (tabla 3.9).',mtable(MN,CT,shipL),true);
+  h+=card('Demanda (t)','Filas: calibre. Columnas: países (tabla 3.9).',mtable(K,CT,demM,{rowSum:'Total',colSum:'Total'}),true);
+  h+=card('Envíos óptimos, alto calibre (t)','La suma de cada columna debe igualar la demanda de alto calibre.',mtable(MN,CT,xH,{rowSum:'Enviado',colSum:'Entregado'}),true);
+  h+=card('Envíos óptimos, bajo calibre (t)','La suma de cada columna debe igualar la demanda de bajo calibre.',mtable(MN,CT,xL,{rowSum:'Enviado',colSum:'Entregado'}),true);
+  h+=`</div></div>`;
+
+  const same=Math.abs(ctx-ytb)<1e-4*Math.max(1,Math.abs(ctx));
+  h+=`<div class="gap"><strong>Dualidad en forma matricial</strong>
+  <p>A cada restricción le corresponde un precio sombra yᵢ. El problema dual es maximizar bᵀ·y sujeto a Aᵀ·y ≤ c, con y ≤ 0 en las restricciones ≤, y ≥ 0 en las ≥ y y libre en las =. Cuando el costo del primal y el valor del dual coinciden, el plan es óptimo.</p>
+  <pre class="f">cᵀ·x* = ${money(ctx)}
+bᵀ·y  = ${money(ytb)}</pre>
+  <p>${same?'<span class="pill ok">Coinciden</span> El plan cumple la dualidad fuerte, así que no existe otro plan más barato.':'<span class="pill warn">Revisar</span> Los dos valores no coinciden.'}</p>
+  <div class="mx"><table><tr><th>N.º</th><th>Restricción</th><th>b</th><th>y (precio sombra)</th><th>y·b</th></tr>
+  ${C.map((c,i)=>{const yi=y[i]||0;return `<tr><td>${c.id.slice(1)}</td><td style="text-align:left;font-weight:400">${esc(c.text)}</td><td>${f2.format(c.rhs)}</td><td class="${yi?'nz':'z'}">${f2.format(yi)}</td><td>${f2.format(Math.abs(yi*c.rhs)<1e-9?0:yi*c.rhs)}</td></tr>`;}).join('')}
+  <tr class="xs"><td>Σ</td><td colspan="3" style="text-align:right">Suma de y·b = bᵀ·y</td><td>${f2.format(ytb)}</td></tr></table></div></div>`;
+  return h+'</div>';
+}
+function render(){
+  renderKpis();
+  const ok=res.status==='optimal';
+  const panes={sol:ok?paneSol():noSol(),var:paneVars(),obj:paneObj(),res:paneRes(),sim:paneSim(),tab:ok?paneTab():noSol(),sen:ok?paneSen():noSol(),mat:ok?paneMat():noSol()};
+  document.getElementById('panes').innerHTML=TABS.map(([id])=>`<div role="tabpanel" id="pane-${id}" aria-labelledby="tab-${id}" ${id===activeTab?'':'hidden'}>${panes[id]}</div>`).join('');
+}
+
+let timer=null;
+const BAD=new Map();
+const NEGMSG='Error: no se permiten valores negativos.';
+function fieldName(t){return t.getAttribute('aria-label')||t.dataset.path;}
+function flag(t,msg){
+  t.classList.add('bad'); t.setAttribute('aria-invalid','true');
+  const id='err-'+t.id; let s=document.getElementById(id);
+  if(!s){s=document.createElement('span');s.className='ferr';s.id=id;t.insertAdjacentElement('afterend',s);}
+  s.textContent=msg; t.setAttribute('aria-describedby',id);
+  BAD.set(t.id,fieldName(t)+' ('+msg.replace('Error: ','').replace(/\.$/,'')+')'); updBar();
+}
+function unflag(t){
+  t.classList.remove('bad'); t.removeAttribute('aria-invalid'); t.removeAttribute('aria-describedby');
+  const s=document.getElementById('err-'+t.id); if(s) s.remove();
+  BAD.delete(t.id); updBar();
+}
+function updBar(){
+  const b=document.getElementById('errbar'); if(!b) return;
+  if(!BAD.size){b.hidden=true;b.textContent='';return;}
+  b.hidden=false; b.textContent='Error en '+BAD.size+' campo'+(BAD.size>1?'s':'')+'. El cálculo usa el último valor válido. '+[...BAD.values()].join('; ')+'.';
+}
+function checkField(t){
+  const raw=t.value, v=parseFloat(raw);
+  if(/^\s*-/.test(raw)||(v<0)){flag(t,NEGMSG);return false;}
+  if(raw.trim()===''||!isFinite(v)){flag(t,'Error: ingrese un número mayor o igual a 0.');return false;}
+  unflag(t); setP(t.dataset.path,v); return true;
+}
+document.addEventListener('keydown',e=>{
+  const t=e.target; if(!t.dataset||!t.dataset.path) return;
+  if(e.key==='-'||e.key==='Subtract'){e.preventDefault();flag(t,NEGMSG);}
+});
+document.addEventListener('paste',e=>{
+  const t=e.target; if(!t.dataset||!t.dataset.path) return;
+  const txt=(e.clipboardData||window.clipboardData).getData('text');
+  if(/-/.test(txt)){e.preventDefault();flag(t,NEGMSG);}
+});
+document.addEventListener('input',e=>{
+  const t=e.target; if(!t.dataset||!t.dataset.path) return;
+  if(!checkField(t)) return;
+  clearTimeout(timer); timer=setTimeout(recompute,150);
+});
+document.addEventListener('focusout',e=>{const t=e.target; if(t.dataset&&t.dataset.path&&t.classList.contains('bad')) checkField(t);});
+document.addEventListener('click',e=>{
+  const b=e.target.closest&&e.target.closest('[data-step]'); if(!b||!TR) return;
+  const n=TR.tables.length, k=b.dataset.step;
+  tabStep=k==='first'?0:k==='last'?n-1:k==='prev'?Math.max(0,tabStep-1):Math.min(n-1,tabStep+1);
+  document.getElementById('pane-tab').innerHTML=paneTab();
+  const nb=document.querySelector('#pane-tab [data-step="'+k+'"]'); if(nb) nb.focus();
+});
+
+renderInputs(); renderTabs(); recompute();
+</script>
+
+</body></html>
